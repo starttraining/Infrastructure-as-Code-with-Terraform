@@ -1,0 +1,55 @@
+The compute instance you launched at this point is based on the Google image given, but has no additional software installed or configuration applied.
+
+Google Cloud allows customers to manage their own custom operating system images. This can be a great way to ensure that the instances you provision with Terraform are pre-configured based on your needs. Packer is the perfect tool for this and includes a builder for Google Cloud.
+
+Terraform uses provisioners to upload files, run shell scripts, or install and trigger other software like configuration management tools.
+
+Define a provisioner
+To define a provisioner, modify the resource block defining the first vm_instance in your configuration to look like the following:
+resource "google_compute_instance" "vm_instance" {
+  name         = "terraform-instance"
+  machine_type = "e2-micro"
+  tags         = ["web", "dev"]
+
+  provisioner "local-exec" {
+    command = "echo ${google_compute_instance.vm_instance.name}:  ${google_compute_instance.vm_instance.network_interface[0].access_config[0].nat_ip} >> ip_address.txt"
+  }
+
+  # ...
+}
+Copied!
+This adds a provisioner block within the resource block. Multiple provisioner blocks can be added to define multiple provisioning steps. Terraform supports many provisioners, but for this example you are using the local-exec provisioner.
+
+The local-exec provisioner executes a command locally on the machine running Terraform, not the VM instance itself. You're using this provisioner versus the others so we don't have to worry about specifying any connection info right now.
+
+This also shows a more complex example of string interpolation than you've seen before. Each VM instance can have multiple network interfaces, so refer to the first one with network_interface[0], count starting from 0, as most programming languages do. Each network interface can have multiple access_config blocks as well, so once again you specify the first one.
+
+Run terraform apply:
+terraform apply
+Copied!
+At this point, the output may be confusing at first.
+
+Terraform found nothing to do - and if you check, you'll find that there's no ip_address.txt file on your local machine.
+
+Terraform treats provisioners differently from other arguments. Provisioners only run when a resource is created, but adding a provisioner does not force that resource to be destroyed and recreated.
+
+Use terraform taint to tell Terraform to recreate the instance:
+terraform taint google_compute_instance.vm_instance
+Copied!
+A tainted resource will be destroyed and recreated during the next apply.
+
+Run terraform apply now:
+terraform apply
+Copied!
+Verify everything worked by looking at the contents of the ip_address.txt file.
+It contains the IP address, just as you asked.
+
+Failed provisioners and tainted resources
+If a resource is successfully created but fails a provisioning step, Terraform will error and mark the resource as tainted. A resource that is tainted still exists, but shouldn't be considered safe to use, since provisioning failed.
+
+When you generate your next execution plan, Terraform will remove any tainted resources and create new resources, attempting to provision them again after creation.
+
+Destroy provisioners
+Provisioners can also be defined that run only during a destroy operation. These are useful for performing system cleanup, extracting data, etc.
+
+For many resources, using built-in cleanup mechanisms is recommended if possible (such as init scripts), but provisioners can be used if necessary.
