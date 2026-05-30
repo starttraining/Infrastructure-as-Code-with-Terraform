@@ -1,0 +1,78 @@
+Create the main.tf file:
+touch main.tf
+
+Click the Open Editor button on the toolbar of Cloud Shell. (You can switch between Cloud Shell and the code editor by using the Open Editor and Open Terminal icons as required, or click the Open in new window button to leave the Editor open in a separate tab).
+
+In the Editor, add the following content to the main.tf file.
+
+terraform {
+  required_providers {
+    google = {
+      source = "hashicorp/google"
+      version = "3.5.0"
+    }
+  }
+}
+
+provider "google" {
+
+  project = "PROJECT ID"
+  region  = "REGION"
+  zone    = "ZONE"
+}
+
+resource "google_compute_network" "vpc_network" {
+  name = "terraform-network"
+}
+
+Note: To use this snippet with Terraform 0.12, remove the terraform {} block.
+Terraform block
+The terraform {} block is required so Terraform knows which provider to download from the Terraform Registry. In the configuration above, the google provider's source is defined as hashicorp/google which is shorthand for registry.terraform.io/hashicorp/google.
+
+You can also assign a version to each provider defined in the required_providers block. The version argument is optional, but recommended. It is used to constrain the provider to a specific version or a range of versions in order to prevent downloading a new provider that may possibly contain breaking changes. If the version isn't specified, Terraform automatically downloads the most recent provider during initialization.
+
+To learn more, on the HashiCorp Terraform website, refer to the Provider Requirements.
+
+Providers
+The provider block is used to configure the named provider, in this case google. A provider is responsible for creating and managing resources. Multiple provider blocks can exist if a Terraform configuration manages resources from different providers.
+
+Initialization
+The first command to run for a new configuration—or after checking out an existing configuration from version control—is terraform init, which initializes various local settings and data that is used by subsequent commands.
+
+Initialize your new Terraform configuration by running the terraform init command in the same directory as your main.tf file:
+terraform init
+
+Creating resources
+Apply you configuration now by running the command terraform apply:
+terraform apply
+
+The output has a + next to resource "google_compute_network" "vpc_network", meaning that Terraform will create this resource. Beneath that, it shows the attributes that will be set. When the value displayed is (known after apply), it means that the value won't be known until the resource is created.
+
+If the plan was created successfully, Terraform will now pause and wait for approval before proceeding. If anything in the plan seems incorrect or dangerous, it is safe to abort here with no changes made to your infrastructure.
+
+If terraform apply failed with an error, read the error message and fix the error that occurred.
+
+The plan looks acceptable here, so type yes at the confirmation prompt, and press ENTER to proceed.
+Executing the plan takes a few minutes since Terraform waits for the network to be created successfully:
+
+# ...
+  Enter a value: yes
+
+google_compute_network.vpc_network: Creating...
+google_compute_network.vpc_network: Still creating... [10s elapsed]
+google_compute_network.vpc_network: Still creating... [20s elapsed]
+google_compute_network.vpc_network: Still creating... [30s elapsed]
+google_compute_network.vpc_network: Still creating... [40s elapsed]
+google_compute_network.vpc_network: Still creating... [50s elapsed]
+google_compute_network.vpc_network: Creation complete after 58s [id=terraform-network]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+After this, Terraform is all done! You can go to the Cloud console to see the network you have provisioned.
+
+In the Google Cloud console, from the Navigation menu, navigate to VPC network. You should see the terraform-network has been provisioned.
+VPC networks page
+
+In Cloud Shell, run the terraform show command to inspect the current state:
+terraform show
+
+These values can be referenced to configure other resources or outputs, which are covered later in this lab.
