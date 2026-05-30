@@ -1,1 +1,132 @@
+In the previous section, you created basic infrastructure with Terraform: a VPC network. In this section, you're going to modify your configuration, and see how Terraform handles change.
 
+Infrastructure is continuously evolving, and Terraform was built to help manage and enact that change. As you change Terraform configurations, Terraform builds an execution plan that only modifies what is necessary to reach your desired state.
+
+By using Terraform to change infrastructure, you can version control not only your configurations but also your state so you can see how the infrastructure evolves over time.
+
+Add resources
+You can add new resources by adding them to your Terraform configuration and running terraform apply to provision them.
+
+In the Editor, add a compute instance resource to main.tf:
+resource "google_compute_instance" "vm_instance" {
+  name         = "terraform-instance"
+  machine_type = "e2-micro"
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-12"
+    }
+  }
+
+  network_interface {
+    network = google_compute_network.vpc_network.name
+    access_config {
+    }
+  }
+}
+Copied!
+This resource includes a few more arguments. The name and machine type are simple strings, but boot_disk and network_interface are more complex blocks. You can see all of the available options in the google_compute_instance documentation.
+
+For this example, your compute instance will use a Debian operating system, and will be connected to the VPC Network you created earlier. Notice how this configuration refers to the network's name property with google_compute_network.vpc_network.name -- google_compute_network.vpc_network is the ID, matching the values in the block that defines the network, and name is a property of that resource.
+
+The presence of the access_config block, even without any arguments, ensures that the instance is accessible over the internet.
+
+Now run terraform apply to create the compute instance:
+terraform apply
+Copied!
+Once again, answer yes to the confirmation prompt.
+This is a fairly straightforward change - you added a "google_compute_instance" resource named "vm_instance" to your configuration, and Terraform created the resource in Google Cloud.
+
+Enable Gemini Code Assist in the Cloud Shell IDE
+You can use Gemini Code Assist in an integrated development environment (IDE) such as Cloud Shell to receive guidance on code or solve problems with your code. Before you can start using Gemini Code Assist, you need to enable it.
+
+In Cloud Shell, enable the Gemini for Google Cloud API with the following command:
+gcloud services enable cloudaicompanion.googleapis.com
+Copied!
+Click Open Editor on the Cloud Shell toolbar.
+Note: To open the Cloud Shell Editor, click Open Editor on the Cloud Shell toolbar. You can switch between Cloud Shell and the code Editor by clicking Open Editor or Open Terminal, as required.
+Click Cloud Code - No Project in the status bar at the bottom of the screen.
+
+Authorize the plugin if necessary. If a project is not automatically selected, click Select a Google Cloud Project, and choose Project ID.
+
+Verify that your Google Cloud project (Project ID) displays in the Cloud Code status message in the status bar.
+
+Change resources with help from Gemini Code Assist
+In addition to creating resources, Terraform can also make changes to those resources.
+
+To help you be more productive while minimizing context switching, Gemini Code Assist provides AI-powered smart actions directly in your code editor. In this section, you decide to use Gemini Code Assist to help you modify some resources with Terraform.
+
+You want to add a tags argument to your vm_instance resource in the configuration file main.tf.
+
+Click the Gemini Code Assist: Smart Actions Gemini Code Assist icon on the toolbar.
+
+Paste the following prompt into the Gemini Code Assist inline text field that opens from the toolbar.
+
+In the configuration file "main.tf", update the "vm_instance" resource by adding a "tags" argument. Set the value to ["web", "dev"].
+Copied!
+To prompt Gemini to modify the code accordingly, press ENTER.
+
+When prompted in the Gemini Diff view, click Accept.
+
+The added tags argument inside the vm_instance resource in the configuration file main.tf now looks like this:
+
+resource "google_compute_instance" "vm_instance" {
+  name         = "terraform-instance"
+  machine_type = "e2-micro"
+  tags         = ["web", "dev"]
+  # ...
+}
+Copied!
+Run terraform apply again to update the instance:
+terraform apply
+Copied!
+The prefix ~ means that Terraform updates the resource in-place. You can go and apply this change by responding yes, and Terraform adds the tags to your instance.
+Click Check my progress to verify the objective.
+Change the infrastructure
+
+Make destructive changes
+A destructive change is a change that requires the provider to replace the existing resource rather than updating it. This usually happens because the cloud provider doesn't support updating the resource in the way described by your configuration.
+
+Changing the disk image of your instance is one example of a destructive change. In this section, you edit the boot_disk block inside the vm_instance resource in your configuration file main.tf with the help of Gemini Code Assist's Smart Actions.
+
+Click Open Editor to switch back to the Cloud Shell Editor, and click the Gemini Code Assist: Smart Actions Gemini Code Assist: Smart Actions icon on the toolbar.
+
+Paste the following prompt into the Gemini Code Assist inline text box that opens from the toolbar:
+
+In the configuration file "main.tf", update the image in the boot_disk block of the "vm_instance" resource to "cos-cloud/cos-stable".
+Copied!
+Press ENTER to change the image in the vm_instance resource accordingly.
+
+When prompted in the Gemini Diff view, click Accept.
+
+The boot_disk block inside the vm_instance resource in the configuration file main.tf should now look like this:
+
+  boot_disk {
+    initialize_params {
+      image = "cos-cloud/cos-stable"
+    }
+  }
+Copied!
+Now run terraform apply again to explore how Terraform applies this change to the existing resources:
+terraform apply
+Copied!
+The prefix -/+ means that Terraform will destroy and recreate the resource, rather than updating it in-place. While some attributes can be updated in-place (which are shown with the ~ prefix), changing the boot disk image for an instance requires recreating it. Terraform and the Google Cloud provider handle these details for you, and the execution plan makes it clear what Terraform will do.
+
+Additionally, the execution plan shows that the disk image change is what required your instance to be replaced. Using this information, you can adjust your changes to possibly avoid destroy/create updates if they are not acceptable in some situations.
+
+Once again, Terraform prompts for approval of the execution plan before proceeding. Answer yes to execute the planned steps.
+As indicated by the execution plan, Terraform first destroyed the existing instance and then created a new one in its place. You can use terraform show again to see the new values associated with this instance.
+
+Destroy infrastructure
+You have now seen how to build and change infrastructure. Before moving on to creating multiple resources and showing resource dependencies, you explore how to completely destroy your Terraform-managed infrastructure.
+
+Destroying your infrastructure is a rare event in production environments. But if you're using Terraform to spin up multiple environments such as development, testing, and staging, then destroying is often a useful action.
+
+Resources can be destroyed using the terraform destroy command, which is similar to terraform apply but it behaves as if all of the resources have been removed from the configuration.
+
+Try the terraform destroy command. Answer yes when prompted to execute this plan and destroy the infrastructure:
+terraform destroy
+Copied!
+The - prefix indicates that the instance and the network will be destroyed. As with apply, Terraform shows its execution plan and waits for approval before making any changes.
+
+Just like with terraform apply, Terraform determines the order in which things must be destroyed. Google Cloud won't allow a VPC network to be deleted if there are resources still in it, so Terraform waits until the instance is destroyed before destroying the network. When performing operations, Terraform creates a dependency graph to determine the correct order of operations. In more complicated cases with multiple resources, Terraform performs operations in parallel when it's safe to do so.
